@@ -4,6 +4,8 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"unicode"
+
 	"github.com/mattn/anko/ast"
 )
 
@@ -21,12 +23,12 @@ type Error struct {
 	Fatal    bool
 }
 
-// Error return the error message.
+// Error returns the error message.
 func (e *Error) Error() string {
 	return e.Message
 }
 
-// Scanner store informations for lexer.
+// Scanner stores informations for lexer.
 type Scanner struct {
 	src      []rune
 	offset   int
@@ -57,9 +59,12 @@ var opName = map[string]int{
 	"switch":   SWITCH,
 	"case":     CASE,
 	"default":  DEFAULT,
+	"go":       GO,
+	"chan":     CHAN,
+	"make":     MAKE,
 }
 
-// Init reset code to scan.
+// Init resets code to scan.
 func (s *Scanner) Init(src string) {
 	s.src = []rune(src)
 }
@@ -106,13 +111,12 @@ retry:
 		}
 	default:
 		switch ch {
-		case -1:
+		case EOF:
 			tok = EOF
 		case '#':
 			for !isEOL(s.peek()) {
 				s.next()
 			}
-			s.next()
 			goto retry
 		case '!':
 			s.next()
@@ -206,6 +210,9 @@ retry:
 		case '<':
 			s.next()
 			switch s.peek() {
+			case '-':
+				tok = OPCHAN
+				lit = "<-"
 			case '=':
 				tok = LE
 				lit = "<="
@@ -260,11 +267,32 @@ retry:
 				tok = int(ch)
 				lit = string(ch)
 			}
-		case '(', ')', ':', ';', '%', '?', '{', '}', ',', '[', ']', '\n', '^':
+		case '\n':
 			tok = int(ch)
 			lit = string(ch)
+		case '(', ')', ':', ';', '%', '?', '{', '}', ',', '[', ']', '^':
+			s.next()
+			if ch == '[' && s.peek() == ']' {
+				s.next()
+				if isLetter(s.peek()) {
+					s.back()
+					tok = ARRAYLIT
+					lit = "[]"
+				} else {
+					s.back()
+					s.back()
+					tok = int(ch)
+					lit = string(ch)
+				}
+			} else {
+				s.back()
+				tok = int(ch)
+				lit = string(ch)
+			}
 		default:
 			err = fmt.Errorf(`syntax error "%s"`, string(ch))
+			tok = int(ch)
+			lit = string(ch)
 			return
 		}
 		s.next()
@@ -272,41 +300,40 @@ retry:
 	return
 }
 
-// isLetter return true if the rune is a letter for identity.
+// isLetter returns true if the rune is a letter for identity.
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+	return unicode.IsLetter(ch) || ch == '_'
 }
 
-// isDigit return true if the rune is a number.
+// isDigit returns true if the rune is a number.
 func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-// isHex return true if the rune is a hex digits.
+// isHex returns true if the rune is a hex digits.
 func isHex(ch rune) bool {
 	return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
 }
 
-// isEOL return true if the rune is at end-of-line or end-of-file.
+// isEOL returns true if the rune is at end-of-line or end-of-file.
 func isEOL(ch rune) bool {
 	return ch == '\n' || ch == -1
 }
 
-// isBrank return true if the rune is empty character..
-func isBrank(ch rune) bool {
-	return ch == ' ' || ch == '\t' || ch == '\n'
+// isBlank returns true if the rune is empty character..
+func isBlank(ch rune) bool {
+	return ch == ' ' || ch == '\t' || ch == '\r'
 }
 
-// peek return current rune in the code.
+// peek returns current rune in the code.
 func (s *Scanner) peek() rune {
-	if !s.reachEOF() {
-		return s.src[s.offset]
-	} else {
-		return -1
+	if s.reachEOF() {
+		return EOF
 	}
+	return s.src[s.offset]
 }
 
-// next move offset to next.
+// next moves offset to next.
 func (s *Scanner) next() {
 	if !s.reachEOF() {
 		if s.peek() == '\n' {
@@ -317,39 +344,39 @@ func (s *Scanner) next() {
 	}
 }
 
-// current return the current offset.
+// current returns the current offset.
 func (s *Scanner) current() int {
 	return s.offset
 }
 
-// offset set the offset value.
+// offset sets the offset value.
 func (s *Scanner) set(o int) {
 	s.offset = o
 }
 
-// back move back offset once to top.
+// back moves back offset once to top.
 func (s *Scanner) back() {
 	s.offset--
 }
 
-// reachEOF return true if offset is at end-of-file.
+// reachEOF returns true if offset is at end-of-file.
 func (s *Scanner) reachEOF() bool {
 	return len(s.src) <= s.offset
 }
 
-// pos return the position of current.
+// pos returns the position of current.
 func (s *Scanner) pos() ast.Position {
 	return ast.Position{Line: s.line + 1, Column: s.offset - s.lineHead + 1}
 }
 
-// skipBlank move position into non-black character.
+// skipBlank moves position into non-black character.
 func (s *Scanner) skipBlank() {
-	for isBrank(s.peek()) {
+	for isBlank(s.peek()) {
 		s.next()
 	}
 }
 
-// scanIdentifier return identifier begining at current position.
+// scanIdentifier returns identifier begining at current position.
 func (s *Scanner) scanIdentifier() (string, error) {
 	var ret []rune
 	for {
@@ -362,7 +389,7 @@ func (s *Scanner) scanIdentifier() (string, error) {
 	return string(ret), nil
 }
 
-// scanIdentifier return number begining at current position.
+// scanNumber returns number begining at current position.
 func (s *Scanner) scanNumber() (string, error) {
 	var ret []rune
 	ch := s.peek()
@@ -376,9 +403,25 @@ func (s *Scanner) scanNumber() (string, error) {
 			s.next()
 		}
 	} else {
-		for isDigit(s.peek()) || s.peek() == '.' || s.peek() == 'e' {
+		for isDigit(s.peek()) || s.peek() == '.' {
 			ret = append(ret, s.peek())
 			s.next()
+		}
+		if s.peek() == 'e' {
+			ret = append(ret, s.peek())
+			s.next()
+			if isDigit(s.peek()) || s.peek() == '+' || s.peek() == '-' {
+				ret = append(ret, s.peek())
+				s.next()
+				for isDigit(s.peek()) || s.peek() == '.' {
+					ret = append(ret, s.peek())
+					s.next()
+				}
+			}
+			for isDigit(s.peek()) || s.peek() == '.' {
+				ret = append(ret, s.peek())
+				s.next()
+			}
 		}
 		if isLetter(s.peek()) {
 			return "", errors.New("identifier starts immediately after numeric literal")
@@ -387,7 +430,7 @@ func (s *Scanner) scanNumber() (string, error) {
 	return string(ret), nil
 }
 
-// scanIdentifier return raw-string begining at current position.
+// scanRawString returns raw-string starting at current position.
 func (s *Scanner) scanRawString() (string, error) {
 	var ret []rune
 	for {
@@ -405,7 +448,8 @@ func (s *Scanner) scanRawString() (string, error) {
 	return string(ret), nil
 }
 
-// scanIdentifier return string begining at current position. This handle backslash escaping.
+// scanString returns string starting at current position.
+// This handles backslash escaping.
 func (s *Scanner) scanString(l rune) (string, error) {
 	var ret []rune
 eos:
@@ -447,7 +491,7 @@ eos:
 	return string(ret), nil
 }
 
-// Lexer provide inteface to parse codes.
+// Lexer provides inteface to parse codes.
 type Lexer struct {
 	s     *Scanner
 	lit   string
@@ -456,14 +500,11 @@ type Lexer struct {
 	stmts []ast.Stmt
 }
 
-// Lex scan the token and literals.
+// Lex scans the token and literals.
 func (l *Lexer) Lex(lval *yySymType) int {
 	tok, lit, pos, err := l.s.Scan()
 	if err != nil {
 		l.e = &Error{Message: fmt.Sprintf("%s", err.Error()), Pos: pos, Fatal: true}
-	}
-	if tok == EOF {
-		return 0
 	}
 	lval.tok = ast.Token{Tok: tok, Lit: lit}
 	lval.tok.SetPosition(pos)
@@ -472,16 +513,28 @@ func (l *Lexer) Lex(lval *yySymType) int {
 	return tok
 }
 
-// Error set parse error.
+// Error sets parse error.
 func (l *Lexer) Error(msg string) {
 	l.e = &Error{Message: msg, Pos: l.pos, Fatal: false}
 }
 
-// Parser provide way to parse the code.
+// Parser provides way to parse the code using Scanner.
 func Parse(s *Scanner) ([]ast.Stmt, error) {
 	l := Lexer{s: s}
 	if yyParse(&l) != 0 {
 		return nil, l.e
 	}
 	return l.stmts, l.e
+}
+
+func EnableErrorVerbose() {
+	yyErrorVerbose = true
+}
+
+// ParserSrc provides way to parse the code from source.
+func ParseSrc(src string) ([]ast.Stmt, error) {
+	scanner := &Scanner{
+		src: []rune(src),
+	}
+	return Parse(scanner)
 }

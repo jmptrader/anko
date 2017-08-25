@@ -2,9 +2,9 @@
 package sort
 
 import (
-	"github.com/mattn/anko/vm"
-	"reflect"
 	s "sort"
+
+	"github.com/mattn/anko/vm"
 )
 
 type is []interface{}
@@ -25,19 +25,32 @@ func (p ss) Len() int           { return len(p) }
 func (p ss) Less(i, j int) bool { return p[i].(string) < p[j].(string) }
 func (p ss) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func Import(env *vm.Env) {
-	m := env.NewModule("sort")
-	m.Define("Ints", reflect.ValueOf(func(ints []interface{}) []interface{} {
-		s.Sort(is(ints))
-		return ints
-	}))
-	m.Define("Float64s", reflect.ValueOf(func(ints []interface{}) []interface{} {
-		s.Sort(is(ints))
-		return ints
-	}))
-	m.Define("Strings", reflect.ValueOf(func(ints []interface{}) []interface{} {
-		s.Sort(is(ints))
-		return ints
-	}))
-
+func Import(env *vm.Env) *vm.Env {
+	m := env.NewPackage("sort")
+	m.Define("Ints", func(arr interface{}) interface{} {
+		if iarr, ok := arr.([]int); ok {
+			s.Ints(iarr)
+		} else {
+			s.Sort(is(arr.([]interface{})))
+		}
+		return arr
+	})
+	m.Define("Float64s", func(arr interface{}) interface{} {
+		if farr, ok := arr.([]float64); ok {
+			s.Float64s(farr)
+		} else {
+			s.Sort(fs(arr.([]interface{})))
+		}
+		return arr
+	})
+	m.Define("Strings", func(arr interface{}) interface{} {
+		if sarr, ok := arr.([]string); ok {
+			s.Strings(sarr)
+		} else {
+			s.Sort(ss(arr.([]interface{})))
+		}
+		return arr
+	})
+	handleGo18(m)
+	return m
 }

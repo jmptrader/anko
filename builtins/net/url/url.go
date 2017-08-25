@@ -4,12 +4,14 @@
 package url
 
 import (
-	"github.com/mattn/anko/vm"
 	u "net/url"
-	"reflect"
+
+	"github.com/mattn/anko/vm"
 )
 
-func Import(env *vm.Env) {
-	m := env.NewModule("url")
-	m.Define("Parse", reflect.ValueOf(u.Parse))
+func Import(env *vm.Env) *vm.Env {
+	m := env.NewPackage("url")
+	m.DefineType("Values", make(u.Values))
+	m.Define("Parse", u.Parse)
+	return m
 }

@@ -1,4 +1,7 @@
 #!anko
+
+var colortext = import("github.com/daviddengcn/go-colortext")
+
 data = [
 "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
 "OOOOOOOOOOOOOOOOOOOOOOOOOOO  OOO",
@@ -33,25 +36,25 @@ data = [
 ]
 
 for d in data {
-  for b in toRunes(d) {
+  for b in toRuneSlice(d) {
     switch toChar(b) {
     case "O":
-      term.ChangeColor("none", false, "white", true)
+      colortext.ChangeColor("none", false, "white", true)
     case ".":
-      term.ChangeColor("none", false, "red", false)
+      colortext.ChangeColor("none", false, "red", false)
     case "X":
-      term.ChangeColor("none", false, "green", true)
+      colortext.ChangeColor("none", false, "green", true)
     case "o":
-      term.ChangeColor("none", false, "mazenta", true)
+      colortext.ChangeColor("none", false, "mazenta", true)
     case " ":
-      term.ChangeColor("none", false, "black", false)
+      colortext.ChangeColor("none", false, "black", false)
     case "+":
-      term.ChangeColor("none", false, "white", true)
+      colortext.ChangeColor("none", false, "white", true)
     case "X":
-      term.ChangeColor("none", false, "red", false)
+      colortext.ChangeColor("none", false, "red", false)
 	}
     print("  ")
   }
-  term.ResetColor()
+  colortext.ResetColor()
   println()
 }

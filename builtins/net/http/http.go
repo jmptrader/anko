@@ -5,9 +5,10 @@ package http
 
 import (
 	"errors"
-	"github.com/mattn/anko/vm"
 	h "net/http"
 	"reflect"
+
+	"github.com/mattn/anko/vm"
 )
 
 type Client struct {
@@ -28,11 +29,12 @@ func (c *Client) Get(args ...reflect.Value) (reflect.Value, error) {
 	return reflect.ValueOf(res), err
 }
 
-func Import(env *vm.Env) {
-	m := env.NewModule("http")
-	m.Define("DefaultClient", reflect.ValueOf(h.DefaultClient))
-	m.Define("NewServeMux", reflect.ValueOf(h.NewServeMux))
-	m.Define("Handle", reflect.ValueOf(h.Handle))
-	m.Define("HandleFunc", reflect.ValueOf(h.HandleFunc))
-	m.Define("ListenAndServe", reflect.ValueOf(h.ListenAndServe))
+func Import(env *vm.Env) *vm.Env {
+	m := env.NewPackage("http")
+	m.Define("DefaultClient", h.DefaultClient)
+	m.Define("NewServeMux", h.NewServeMux)
+	m.Define("Handle", h.Handle)
+	m.Define("HandleFunc", h.HandleFunc)
+	m.Define("ListenAndServe", h.ListenAndServe)
+	return m
 }

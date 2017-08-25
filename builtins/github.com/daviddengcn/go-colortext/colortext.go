@@ -1,12 +1,11 @@
 // +build !appengine
 
-// Package term implements terminal interface for anko script.
-package term
+// Package colortext implements terminal interface for anko script.
+package colortext
 
 import (
 	"github.com/daviddengcn/go-colortext"
 	"github.com/mattn/anko/vm"
-	"reflect"
 )
 
 var ntoc = map[string]ct.Color{
@@ -28,10 +27,10 @@ func colorOf(name string) ct.Color {
 	return ct.None
 }
 
-func Import(env *vm.Env) {
-	m := env.NewModule("term")
+func Import(env *vm.Env) *vm.Env {
+	m := env.NewPackage("ct")
 
-	m.Define("ChangeColor", reflect.ValueOf(func(fg string, fa bool, rest ...interface{}) {
+	m.Define("ChangeColor", func(fg string, fa bool, rest ...interface{}) {
 		if len(rest) == 2 {
 			bg, ok := rest[0].(string)
 			if !ok {
@@ -45,9 +44,10 @@ func Import(env *vm.Env) {
 		} else {
 			ct.ChangeColor(colorOf(fg), fa, ct.None, false)
 		}
-	}))
+	})
 
-	m.Define("ResetColor", reflect.ValueOf(func() {
+	m.Define("ResetColor", func() {
 		ct.ResetColor()
-	}))
+	})
+	return m
 }

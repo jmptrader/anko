@@ -97,6 +97,8 @@ type CallExpr struct {
 	Func     interface{}
 	Name     string
 	SubExprs []Expr
+	VarArg   bool
+	Go       bool
 }
 
 // AnonCallExpr provide anonymous calling expression. ex: func(){}().
@@ -104,6 +106,8 @@ type AnonCallExpr struct {
 	ExprImpl
 	Expr     Expr
 	SubExprs []Expr
+	VarArg   bool
+	Go       bool
 }
 
 // MemberExpr provide expression to refer menber.
@@ -118,6 +122,14 @@ type ItemExpr struct {
 	ExprImpl
 	Value Expr
 	Index Expr
+}
+
+// SliceExpr provide expression to refer slice of Array.
+type SliceExpr struct {
+	ExprImpl
+	Value Expr
+	Begin Expr
+	End   Expr
 }
 
 // FuncExpr provide function expression.
@@ -155,12 +167,39 @@ type AssocExpr struct {
 // NewExpr provide expression to make new instance.
 type NewExpr struct {
 	ExprImpl
-	Name     string
-	SubExprs []Expr
+	Type string
 }
 
 // ConstExpr provide expression for constant variable.
 type ConstExpr struct {
 	ExprImpl
 	Value string
+}
+
+type ChanExpr struct {
+	ExprImpl
+	Lhs Expr
+	Rhs Expr
+}
+
+type Type struct {
+	Name string
+}
+
+type MakeExpr struct {
+	ExprImpl
+	Type string
+}
+
+type MakeChanExpr struct {
+	ExprImpl
+	Type     string
+	SizeExpr Expr
+}
+
+type MakeArrayExpr struct {
+	ExprImpl
+	Type    string
+	LenExpr Expr
+	CapExpr Expr
 }
